@@ -1,0 +1,635 @@
+openapi: 3.0.0
+info:
+  title: Quotes API
+  version: 0.4.0
+  description: API for managing quotes with POST, PUT, and GET endpoints
+paths:
+  /quotes:
+    post:
+      summary: Create a new quote
+      parameters:
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/SubscriptionKeyHeader'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                quote_data:
+                  description: JSON payload containing the quote details.
+                document:
+                  description: Mandatory PDF document attached to the quote request.
+                    Must be a PDF file type.
+                  type: string
+                  format: binary
+              required:
+              - quote_data
+              - document
+          application/base64:
+            schema:
+              $ref: '#/components/schemas/Base64Envelope'
+          multipart/mixed:
+            schema:
+              $ref: '#/components/schemas/MultipartBase64Request'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequestPost'
+      responses:
+        '201':
+          description: Accepted - Success response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteSuccessResponse'
+        '415':
+          description: 'Unsupported Media Type: The server does not support the media
+            type specified in the Content-Type header for one or more parts of the
+            multi-part request. This includes missing the mandatory PDF document.'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteFailureResponse'
+        '400':
+          description: Bad Request; signifies a client-side issue preventing the server
+            from processing a request, often due to incorrect multi-part formatting,
+            such as an valid Content-Type header, a malformed body, or unsuitable
+            data within a part.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteFailureResponse'
+  /quotes/{everId}:
+    put:
+      summary: Update an existing quote
+      parameters:
+      - name: everId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/SubscriptionKeyHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QuoteRequestPut'
+      responses:
+        '201':
+          description: Accepted, Success response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteSuccessResponse'
+        '400':
+          description: Failure response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteFailureResponse'
+  /quotes/{everId}/status:
+    get:
+      summary: Get quote status by ID
+      parameters:
+      - name: everId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - $ref: '#/components/parameters/AuthorizationHeader'
+      - $ref: '#/components/parameters/SubscriptionKeyHeader'
+      responses:
+        '200':
+          description: Success response (handles all Quote States including Data Error
+            via conditional logic)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteGetResponse'
+        '400':
+          description: Failure response (for general API errors outside of quote state
+            progression)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuoteFailureResponse'
+components:
+  schemas:
+    Base64Envelope:
+      type: object
+      description: Single request body for application/base64 content type. Contains
+        both file and JSON payload as base64-encoded strings.
+      required:
+      - file
+      - payload
+      additionalProperties: false
+      properties:
+        file:
+          type: string
+          description: Base64-encoded binary of a PDF document
+        payload:
+          type: string
+          description: Base64-encoded JSON string that decodes to QuoteRequestPost
+            structure
+    MultipartBase64Request:
+      type: object
+      description: Multipart form where both fields are base64-encoded strings, used
+        for multipart/mixed content type.
+      required:
+      - file
+      - payload
+      additionalProperties: false
+      properties:
+        file:
+          type: string
+          description: Base64-encoded PDF file
+        payload:
+          type: string
+          description: Base64-encoded JSON matching QuoteRequestPost structure
+    QuoteMetaBase:
+      description: Common metadata for all quote requests.
+      type: object
+      properties:
+        everId:
+          type: string
+          format: uuid
+          description: Unique ID of the quote. Required for PUT requests.
+        externalId:
+          type: string
+          description: Client-provided external ID for tracking.
+        ApiVersion:
+          type: string
+          description: The API version of the request payload. Must be 0.4.0 or greater.
+          pattern: ^([1-9]\\d*\\.\\d+\\.\\d+|0\\.[5-9]\\d*\\.\\d+|0\\.4\\.[0-9]\\d*)$
+        TransactionType:
+          type: string
+          enum:
+          - C
+          - U
+          description: Indicates the transaction type. Must be 'C' (Create) for POST
+            and 'U' (Update) for PUT.
+      required:
+      - ApiVersion
+      - TransactionType
+    QuoteData:
+      description: The main payload containing submission, request, and contact details.
+      type: object
+      properties:
+        Submission:
+          type: object
+          properties:
+            Insured:
+              type: object
+              properties:
+                InsuredName:
+                  type: string
+                Address:
+                  type: object
+                  properties:
+                    State:
+                      type: string
+                      enum:
+                      - AL
+                      - AK
+                      - AZ
+                      - AR
+                      - CA
+                      - CO
+                      - CT
+                      - DE
+                      - DC
+                      - FL
+                      - GA
+                      - HI
+                      - ID
+                      - IL
+                      - IN
+                      - IA
+                      - KS
+                      - KY
+                      - LA
+                      - ME
+                      - MD
+                      - MA
+                      - MI
+                      - MN
+                      - MS
+                      - MO
+                      - MT
+                      - NE
+                      - NV
+                      - NH
+                      - NJ
+                      - NC
+                      - ND
+                      - OH
+                      - OK
+                      - OR
+                      - PA
+                      - RI
+                      - SC
+                      - SD
+                      - TN
+                      - TX
+                      - UT
+                      - VT
+                      - VA
+                      - WA
+                      - WV
+                      - WI
+                      - WY
+                    Postalcode:
+                      type: string
+                      description: accepts 12345 or 12345-1234 format (numbers only)
+                      pattern: ^\\d{5}(-\\d{4})?$
+                    City:
+                      type: string
+                    AddressLine1:
+                      type: string
+                      description: Street address line 1. Cannot have characters '*',
+                        '@', '$'.
+                      pattern: ^[A-Za-z0-9,\\s\\.#/\\-]+$
+                    AddressLine2:
+                      type: string
+                      description: Street address line 2. Cannot have characters '*',
+                        '@', '$'.
+                      pattern: ^[A-Za-z0-9,\\s\\.#/\\-]*$
+                  required:
+                  - State
+                  - Postalcode
+                  - City
+                  - AddressLine1
+              required:
+              - InsuredName
+              - Address
+            EffectiveDate:
+              description: "Date should be in yyyy/mm/dd format and between <today\u2019\
+                s date - 30 days> and <todays date  + 120 days>"
+              type: string
+              format: date
+              pattern: ^\\d{4}/(0[1-9]|1[0-2])/(0[1-9]|[12]\\d|3[01])$
+          required:
+          - Insured
+          - EffectiveDate
+        Request:
+          type: object
+          properties:
+            TotalPremium:
+              type: number
+            Products:
+              type: object
+              properties:
+                MguPlanCode:
+                  type: string
+                  enum:
+                  - BROP01
+                  - BROP02
+                  - BROP03
+                  - BROP04
+                MguOptionSet:
+                  type: string
+                  enum:
+                  - BROO01
+                  - BROO02
+                  - BROO03
+                  - BROO04
+                MguOfferingType:
+                  type: string
+                  enum:
+                  - BBF
+                  - BCA
+                  - BCH
+                  - BCT
+                  - BHD
+                  - BSC
+                EverProductCode:
+                  type: string
+                  enum:
+                  - PA
+              required:
+              - MguPlanCode
+              - MguOfferingType
+              - EverProductCode
+            Exposures:
+              type: object
+              properties:
+                NumParticipants:
+                  type: integer
+                  minimum: 1
+                  maximum: 99999
+                NumStudents:
+                  type: integer
+                  minimum: 0
+                  maximum: 1000000
+                NumVolunteers:
+                  type: integer
+                  minimum: 0
+                  maximum: 100000
+                NumDays:
+                  type: integer
+                  minimum: 1
+                  maximum: 365
+            Coverages:
+              type: object
+              properties:
+                ScopeOfCoverage:
+                  type: string
+                  enum:
+                  - Primary Only
+                  - Full Excess
+                  - $100 Primary Excess
+                CatastrophicCashBenefit:
+                  type: number
+                  enum:
+                  - 0
+                  - 1
+              required:
+              - ScopeOfCoverage
+          required:
+          - TotalPremium
+          - Products
+          - Exposures
+          - Coverages
+        Producer:
+          type: object
+          properties:
+            ProducerCode:
+              type: string
+              description: 5 digit number, no alphabets.
+              enum:
+              - '35318'
+              pattern: ^\\d{5}$
+          required:
+          - ProducerCode
+        Insured:
+          type: object
+          properties:
+            NAICS:
+              type: object
+              properties:
+                Code:
+                  type: string
+                  description: 6 digit number, no alphabets.
+                  pattern: ^\\d{6}$
+        Contacts:
+          type: object
+          description: This object and its fields are optional.
+          properties:
+            phoneNumber:
+              type: string
+              description: accepts (111) 111-1111 x111 or (111) 111-1111 format
+              pattern: ^\\(\\d{3}\\) \\d{3}-\\d{4}( x\\d+)?$
+            lastName:
+              type: string
+              description: No special characters other than single quote (').
+              pattern: ^[A-Za-z'\\s\\-]+$
+            firstName:
+              type: string
+              description: No special characters other than single quote (').
+              pattern: ^[A-Za-z'\\s\\-]+$
+            emailAddress:
+              type: string
+              format: email
+              description: Must be a valid email format.
+              pattern: ^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$
+    QuoteRequestPost:
+      description: Schema for POST requests, where everId in meta is optional, and
+        TransactionType must be 'C'.
+      type: object
+      allOf:
+      - type: object
+        properties:
+          meta:
+            $ref: '#/components/schemas/QuoteMetaBase'
+          data:
+            $ref: '#/components/schemas/QuoteData'
+        required:
+        - meta
+        - data
+      - type: object
+        properties:
+          meta:
+            type: object
+            properties:
+              TransactionType: {}
+      - {}
+      - {}
+      - {}
+      - {}
+      - {}
+    QuoteRequestPut:
+      description: Schema for PUT requests, requiring everId in meta, and TransactionType
+        must be 'U'.
+      allOf:
+      - $ref: '#/components/schemas/QuoteRequestPost'
+      - type: object
+        properties:
+          meta:
+            type: object
+            properties:
+              everId:
+                $ref: '#/components/schemas/QuoteMetaBase/properties/everId'
+              TransactionType: {}
+            required:
+            - everId
+        required:
+        - meta
+    QuoteGetResponse:
+      description: Response structure for the GET /quotes/{everId}/status endpoint,
+        with conditional fields based on 'meta.status.State'.
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            everId:
+              type: string
+              format: uuid
+            externalId:
+              type: string
+            LastUpdatedAt:
+              type: string
+              format: date-time
+            ApiVersion:
+              type: string
+            QuoteId:
+              type: string
+              description: The internal quote ID.
+            status:
+              type: object
+              properties:
+                Code:
+                  type: integer
+                State:
+                  type: string
+                  enum:
+                  - Received
+                  - Validated
+                  - Data Error
+                  - Quote in Progress
+                  - Quote Ready
+                  - Policy Bound
+                StateAsOf:
+                  type: string
+                  format: date-time
+              required:
+              - Code
+              - State
+              - StateAsOf
+            error:
+              $ref: '#/components/schemas/QuoteFailureResponse/properties/meta/properties/error'
+          required:
+          - everId
+          - LastUpdatedAt
+          - ApiVersion
+          - status
+        data:
+          type: object
+          properties:
+            Submission:
+              type: object
+              properties:
+                SubmissionID:
+                  type: string
+            Policy:
+              type: object
+              properties:
+                PolicyNumber:
+                  type: string
+      required:
+      - meta
+      allOf:
+      - {}
+      - {}
+      - {}
+      - {}
+      - {}
+    QuoteSuccessResponse:
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            everId:
+              type: string
+              format: uuid
+            externalId:
+              type: string
+            status:
+              type: object
+              properties:
+                Code:
+                  type: string
+                State:
+                  type: string
+                  enum:
+                  - Received
+                  - Validated
+                  - Data Error
+                  - Quote in Progress
+                  - Quote Ready
+                  - Policy Bound
+                StateAsOf:
+                  type: string
+                  format: date-time
+            LastUpdatedAt:
+              type: string
+              format: date-time
+            ApiVersion:
+              type: string
+    QuoteFailureResponse:
+      description: Common failure response structure.
+      type: object
+      properties:
+        meta:
+          type: object
+          properties:
+            everId:
+              type: string
+              format: uuid
+            externalId:
+              type: string
+            LastUpdatedAt:
+              type: string
+              format: date-time
+            ApiVersion:
+              type: string
+            status:
+              type: object
+              properties:
+                Code:
+                  type: integer
+                State:
+                  type: string
+                  enum:
+                  - Received
+                  - Validated
+                  - Data Error
+                  - Quote in Progress
+                  - Quote Ready
+                  - Policy Bound
+                StateAsOf:
+                  type: string
+                  format: date-time
+            error:
+              type: object
+              properties:
+                Syscode:
+                  type: integer
+                message:
+                  type: string
+                details:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      Source:
+                        type: string
+                        enum:
+                        - Elevate
+                        - Escape
+                        - Erebor
+                        - IR
+                      Message:
+                        type: string
+                      Code:
+                        type: integer
+          required:
+          - everId
+          - LastUpdatedAt
+          - ApiVersion
+          - status
+          - error
+  parameters:
+    AuthorizationHeader:
+      name: Authorization
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Bearer token for authentication
+    SubscriptionKeyHeader:
+      name: Ocp-Apim-Subscription-Key
+      in: header
+      required: true
+      schema:
+        type: string
+      description: Subscription key for API access
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    subscriptionKey:
+      type: apiKey
+      in: header
+      name: Ocp-Apim-Subscription-Key
+      description: Azure APIM subscription key
+security:
+- bearerAuth: []
+  subscriptionKey: []
