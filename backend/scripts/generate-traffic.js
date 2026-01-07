@@ -1,50 +1,62 @@
-const https = require('https');
+const http = require('http'); // Use http for local
 
-const GATEWAY_BASE = 'YOUR_APIM_GATEWAY_URL'; // e.g. apim-service.azure-api.net
-const KEY = 'YOUR_SUBSCRIPTION_KEY';
+const GATEWAY_BASE = 'localhost';
+const PORT = 3002; // Match backend port
 
 const endpoints = [
-    { method: 'GET', path: '/quotes/quotes' },
-    { method: 'POST', path: '/quotes/quotes' },
-    { method: 'GET', path: '/quotes/quotes/367fdcc0-a09c-4a51-8014-0aa76a4c6576/status' },
-    { method: 'PUT', path: '/quotes/quotes/367fdcc0-a09c-4a51-8014-0aa76a4c6576' },
-    { method: 'GET', path: '/quotes/invalid-path' }, // Force some extra 404s
+    // Erebor
+    { method: 'POST', path: '/erebor/1.0/quotes' },
+    { method: 'GET', path: '/erebor/1.0/quotes/0992355b-1ffd-4ac9-aaa4-8e2cc518ed6d/status' },
+    { method: 'PUT', path: '/erebor/1.0/quotes/0ca94fd0-5cd7-4fb0-b08c-6e78ccd1dc19' },
+
+    // ImageRight
+    { method: 'POST', path: '/shrimagerightdocument/1.0/v1.0/Upload' },
+
+    // Elevate
+    { method: 'POST', path: '/elevate-mgu/1.0/submissions' },
+    { method: 'PUT', path: '/elevate-mgu/1.0/submissions' },
+    { method: 'POST', path: '/elevate-mgu/1.0/quotes' },
+
+    // Elevate Kafka
+    { method: 'POST', path: '/kafka/1.0/topics/EREBOR_pas_submissions/records' },
+    { method: 'POST', path: '/kafka/1.0/topics/EREBOR_pas_quotes/records' },
+    { method: 'POST', path: '/kafka/1.0/topics/EREBOR_pas_policies/records' }
 ];
 
+let requestsSent = 0;
+const maxRequests = 200;
+
 function sendRequest() {
+    if (requestsSent >= maxRequests) {
+        console.log(`\x1b[32mTarget reached: ${requestsSent} requests sent. Stopping.\x1b[0m`);
+        process.exit(0);
+    }
+
     const ep = endpoints[Math.floor(Math.random() * endpoints.length)];
     const options = {
         hostname: GATEWAY_BASE,
+        port: PORT,
         path: ep.path,
         method: ep.method,
         headers: {
-            'Ocp-Apim-Subscription-Key': KEY,
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer placeholder-token'
+            'Content-Type': 'application/json'
         }
     };
 
-    const req = https.request(options, (res) => {
-        console.log(`[${new Date().toISOString()}] ${ep.method} ${ep.path} -> ${res.statusCode}`);
+    const req = http.request(options, (res) => {
+        requestsSent++;
+        console.log(`[${requestsSent}/${maxRequests}] ${ep.method} ${ep.path} -> ${res.statusCode}`);
     });
 
     req.on('error', (e) => {
-        console.error(`Status: Request failed: ${e.message}`);
+        console.error(`Request failed: ${e.message}`);
     });
 
     if (ep.method === 'POST' || ep.method === 'PUT') {
-        req.write(JSON.stringify({
-            meta: {
-                ApiVersion: "0.4.0",
-                TransactionType: ep.method === 'POST' ? 'C' : 'U'
-            },
-            data: {
-                Submission: { Insured: { InsuredName: "Real Traffic Test" }, EffectiveDate: "2026/01/10" }
-            }
-        }));
+        req.write(JSON.stringify({ test: "Multi-API Traffic" }));
     }
     req.end();
 }
 
-console.log('Starting refined traffic generation (1 request per second)...');
-setInterval(sendRequest, 1000);
+console.log(`Starting expanded traffic generation (${maxRequests} requests)...`);
+setInterval(sendRequest, 500); // 2 requests per second
